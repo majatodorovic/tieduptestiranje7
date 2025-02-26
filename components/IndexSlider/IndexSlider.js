@@ -88,11 +88,45 @@ const IndexSlider = ({ banners }) => {
     banner: banners[0]?.image,
   });
   const [isDragging, setIsDragging] = useState(false);
-  const [draggingIndex, setDraggingIndex] = useState(0);
+  const [startX, setStartX] = useState(0);
   const sliderRef = useRef();
-  const touchStartX = useRef(0);
-
   const intervalRef = useRef(null);
+
+  const handleTouchStart = (event) => {
+    setStartX(event.touches[0].clientX);
+    setIsDragging(true);
+  };
+  const handleSlideChange = (index) => {
+    setCurrentSlide({
+      index: index,
+      banner: banners[index]?.image,
+    });
+    resetInterval(); // Resetuje interval pri ručnoj promeni
+  };
+  const resetInterval = () => {
+    clearInterval(intervalRef.current); // Zaustavi trenutni tajmer
+    intervalRef.current = setInterval(nextSlide, 5000); // Pokreni novi
+  };
+  
+  const handleTouchMove = (event) => {
+    if (!isDragging) return;
+  
+    const moveX = event.touches[0].clientX - startX;
+    if (moveX > 50) {
+      prevSlide();
+      resetInterval(); // RESETUJEMO TAJMER
+      setIsDragging(false);
+    } else if (moveX < -50) {
+      nextSlide();
+      resetInterval(); // RESETUJEMO TAJMER
+      setIsDragging(false);
+    }
+  };
+  
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
 
   useEffect(() => {
     let banner = banners;
@@ -107,18 +141,15 @@ const IndexSlider = ({ banners }) => {
       });
     };
 
-    const resetInterval = () => {
+    intervalRef.current = setInterval(nextSlide, 5000);
+
+    const handleInteraction = () => {
       clearInterval(intervalRef.current);
-      intervalRef.current = setInterval(nextSlide, 2000);
+      intervalRef.current = setInterval(nextSlide, 5000);
     };
 
-    intervalRef.current = setInterval(nextSlide, 2000);
-    const handleInteraction = () => {
-      resetInterval();
-    };
     window.addEventListener("click", handleInteraction);
     window.addEventListener("keydown", handleInteraction);
-
     return () => {
       clearInterval(intervalRef.current);
       window.removeEventListener("click", handleInteraction);
@@ -126,100 +157,36 @@ const IndexSlider = ({ banners }) => {
     };
   }, [banners]);
 
-  const resetInterval = () => {
-    clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(() => {
-      setCurrentSlide((prevState) => {
-        const nextIndex = (prevState.index + 1) % banners.length;
-        return {
-          index: nextIndex,
-          banner: banners[nextIndex]?.image,
-        };
-      });
-    }, 5000);
-  };
-
-
-  const handleSlideChange = (index) => {
-    setCurrentSlide({
-      index: index,
-      banner: banners?.[index]?.image,
+  const nextSlide = () => {
+    setCurrentSlide((prevState) => {
+      const nextIndex = (prevState.index + 1) % banners.length;
+      return {
+        index: nextIndex,
+        banner: banners[nextIndex]?.image,
+      };
     });
-    clearInterval(intervalRef.current); // Pauziramo interval
-    setTimeout(() => {
-      resetInterval(); // Ponovo pokrećemo automatsko menjanje slajda nakon 5 sekundi
-    }, 5000);
+    resetInterval(); // Resetuje interval pri ručnoj promeni
   };
 
-  useEffect(() => {
-    Aos.init();
-  });
-
-  const handleTouchStart = (event) => {
-    setIsDragging(true);
-    touchStartX.current = event.touches[0].clientX;
+  const prevSlide = () => {
+    setCurrentSlide((prevState) => {
+      const prevIndex = (prevState.index - 1 + banners.length) % banners.length;
+      return {
+        index: prevIndex,
+        banner: banners[prevIndex]?.image,
+      };
+    });
+    resetInterval(); // Resetuje interval pri ručnoj promeni
   };
-
-  const handleTouchMove = (event) => {
-    if (isDragging) {
-      const sliderRect = sliderRef.current.getBoundingClientRect();
-      const slideWidth = sliderRect.width / banners.length;
-      const touchX = event.touches[0].clientX;
-      const diffX = touchStartX.current - touchX;
-      if (Math.abs(diffX) > slideWidth / 3) {
-        const newIndex = diffX > 0 ? currentSlide.index + 1 : currentSlide.index - 1;
-        if (newIndex >= 0 && newIndex < banners.length) {
-          setCurrentSlide({
-            index: newIndex,
-            banner: banners[newIndex]?.image,
-          });
-          clearInterval(intervalRef.current); // Pauziramo automatski slajder
-          setTimeout(() => {
-            resetInterval(); // Ponovo pokrećemo nakon 5 sekundi
-          }, 2000);
-        }
-        touchStartX.current = touchX;
-
-      }
-    }
-  };
-
-  const handleMouseDown = (event) => {
-    setIsDragging(true);
-    const sliderRect = sliderRef.current.getBoundingClientRect();
-    const mouseX = event.clientX - sliderRect.left;
-    const slideWidth = sliderRect.width / banners.length;
-    setDraggingIndex(Math.floor(mouseX / slideWidth));
-  };
-
-  const handleMouseUp = () => {
-    if (isDragging) {
-      setCurrentSlide({
-        index: draggingIndex,
-        banner: banners[draggingIndex]?.image,
-      });
-      setIsDragging(false);
-      resetInterval(); // Resetuj interval nakon prevlačenja
-    }
-  };
-
-  useEffect(() => {
-    const sliderElement = sliderRef.current;
-    sliderElement.addEventListener("touchstart", handleTouchStart, { passive: true });
-    sliderElement.addEventListener("touchmove", handleTouchMove, { passive: true });
-    sliderElement.addEventListener("mousedown", handleMouseDown, { passive: true });
-    sliderElement.addEventListener("mouseup", handleMouseUp, { passive: true });
-
-    return () => {
-      sliderElement.removeEventListener("touchstart", handleTouchStart);
-      sliderElement.removeEventListener("touchmove", handleTouchMove);
-      sliderElement.removeEventListener("mousedown", handleMouseDown);
-      sliderElement.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [isDragging, currentSlide.index, banners]);
 
   return (
-    <div className="w-screen block" ref={sliderRef}>
+    <div
+      className="w-screen block"
+      ref={sliderRef}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       <div className="relative h-full overflow-hidden">
         <div className="items-center justify-between h-full w-full">
           {(banners ?? [])?.map((banner, index) => {
@@ -247,7 +214,7 @@ const IndexSlider = ({ banners }) => {
                         </h1>
                       )}
                       {banner?.subtitle && (
-                        <h2 className="text-white max-sm:text-xl text-[42px] font-semibold sm:tracking-wider max-sm:tracking-normal max-sm:mx-auto">
+                        <h2 className="text-white max-sm:text-xl text-[42px] font-semibold  sm:tracking-wider max-sm:tracking-normal max-sm:mx-auto">
                           {banner?.subtitle}
                         </h2>
                       )}
@@ -257,7 +224,7 @@ const IndexSlider = ({ banners }) => {
                         </p>
                       )}
                       {banner?.button && (
-                        <button className="bg-transparent hover:bg-white hover:text-black transition-all duration-300 text-white text-sm font-bold uppercase py-4 px-12 max-sm:px-2 max-sm:py-2 max-sm:flex max-sm:items-center max-sm:justify-center border border-white max-sm:w-[250px] mt-2">
+                        <button className="bg-transparent  hover:bg-white hover:text-black transition-all duration-300  text-white text-sm font-bold uppercase py-4 px-12 max-sm:px-2 max-sm:py-2 max-sm:flex max-sm:items-center max-sm:justify-center border border-white max-sm:w-[250px] mt-2">
                           {banner?.button}
                         </button>
                       )}
@@ -270,12 +237,12 @@ const IndexSlider = ({ banners }) => {
         </div>
       </div>
       <div className="relative">
-        <div className="absolute max-sm:-top-[1rem] md:-top-[2rem] xl:-top-[2rem] 2xl:-top-20 w-full flex items-center justify-center z-[50]">
+        <div className="absolute max-sm:-top-[1rem] md:-top-[2rem] xl:-top-[2rem] 2xl:-top-20  w-full flex items-center justify-center z-[50]">
           {banners?.map((banner, index) => (
             <div
               key={index}
               className={`${currentSlide?.index === index ? "bganimate" : "bg-white"
-                } w-32 h-[3.5px] mx-1 cursor-pointer`}
+                } w-32 h-[3.5px]  mx-1 cursor-pointer`}
               onClick={() => handleSlideChange(index)}
             ></div>
           ))}
