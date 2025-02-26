@@ -23,7 +23,7 @@ const RenderBanner = ({ banner }) => {
           width={0}
           height={0}
           sizes={`100vw`}
-          className="w-full h-[505px] object-cover"
+          className="w-full h-[508px] sm:h-auto object-cover"
           priority
         />
       );
@@ -107,10 +107,10 @@ const IndexSlider = ({ banners }) => {
     clearInterval(intervalRef.current); // Zaustavi trenutni tajmer
     intervalRef.current = setInterval(nextSlide, 5000); // Pokreni novi
   };
-  
+
   const handleTouchMove = (event) => {
     if (!isDragging) return;
-  
+
     const moveX = event.touches[0].clientX - startX;
     if (moveX > 50) {
       prevSlide();
@@ -122,7 +122,7 @@ const IndexSlider = ({ banners }) => {
       setIsDragging(false);
     }
   };
-  
+
 
   const handleTouchEnd = () => {
     setIsDragging(false);
